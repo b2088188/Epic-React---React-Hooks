@@ -1,14 +1,59 @@
 // useEffect: HTTP requests
 // http://localhost:3000/isolated/exercise/06.js
 
-import * as React from 'react'
+import React, {useState, useEffect} from 'react'
+import {ErrorBoundary} from 'react-error-boundary';
 // 🐨 you'll want the following additional things from '../pokemon':
 // fetchPokemon: the function we call to get the pokemon info
 // PokemonInfoFallback: the thing we show while we're loading the pokemon info
 // PokemonDataView: the stuff we use to display the pokemon info
-import {PokemonForm} from '../pokemon'
+import {PokemonForm, fetchPokemon, PokemonInfoFallback, PokemonDataView} from '../pokemon'
+
+
+
+
+function ErrorFallback({error, resetErrorBoundary}) {
+  return (
+    <div role="alert">
+        There was an error: <pre style={{whiteSpace: 'normal'}}>{error.message}</pre>
+        <button onClick = {resetErrorBoundary}>Try Again</button>
+      </div>
+    )
+}
 
 function PokemonInfo({pokemonName}) {
+  const [pokemon, setPokemon] = useState({
+    data: {},
+    status: 'idle',
+    error: null
+  });
+
+
+  useEffect(() => {    
+    if(pokemonName)
+    fetchData()
+    async function fetchData() {
+      try {
+      setPokemon({
+        ...pokemon,
+        status: 'pending'
+      });
+      const res = await fetchPokemon(pokemonName);
+       setPokemon({
+        ...pokemon,
+        status: 'resolved',
+        data: res
+      }); 
+      }
+      catch(err) {
+        setPokemon({
+          status: 'rejected',
+          error: err
+        })
+      }          
+    }
+  }, [pokemonName])
+
   // 🐨 Have state for the pokemon (null)
   // 🐨 use React.useEffect where the callback should be called whenever the
   // pokemon name changes.
@@ -25,7 +70,14 @@ function PokemonInfo({pokemonName}) {
   //   3. pokemon: <PokemonDataView pokemon={pokemon} />
 
   // 💣 remove this
-  return 'TODO'
+  if(!pokemonName)
+    return <p>Submit a Pokemon</p>
+  if(pokemon.status === 'idle' || pokemon.status === 'pending')
+    return <PokemonInfoFallback name={pokemonName} />
+  if(pokemon.status === 'rejected')
+    throw pokemon.error
+  if(pokemon.status === 'resolved')
+  return <PokemonDataView pokemon={pokemon.data} />
 }
 
 function App() {
@@ -35,12 +87,18 @@ function App() {
     setPokemonName(newPokemonName)
   }
 
+  function handleReset() {
+    setPokemonName('');
+  }
+
   return (
     <div className="pokemon-info-app">
       <PokemonForm pokemonName={pokemonName} onSubmit={handleSubmit} />
       <hr />
       <div className="pokemon-info">
+        <ErrorBoundary resetKeys = {[/*If the dependency change, reset the error*/pokemonName]} FallbackComponent = {ErrorFallback} onReset = {/*Reset the pokemon name when error reset*/handleReset}>          
         <PokemonInfo pokemonName={pokemonName} />
+        </ErrorBoundary>
       </div>
     </div>
   )
